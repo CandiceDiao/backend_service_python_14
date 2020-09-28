@@ -12,55 +12,63 @@ app.config["JSON_AS_ASCII"] = False
 #允许跨域访问
 CORS(app)
 
-# 使用了RESTFul扩展
+# 1使用了RESTFul扩展
 api = Api(app)
 
-# 数据库的配置
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://python14:python14@stuq.ceshiren.com:23306/python14'
+# 2数据库的配置 SQL Alchemy
+#                                       'mysql+pymysql://{user}:{password}@{host}:{port}/{db}'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:12345678@192.168.73.8:9999/platformDB'
 # 使用sqlalchemy扩展
 db = SQLAlchemy(app)
 
-# token管理
+#3token管理
 app.config['JWT_SECRET_KEY'] = 'ceshiren.com'  # Change this!
 jwt = JWTManager(app)
 
-# 使用jenkins做任务分发
+#4使用jenkins做任务分发
+#生成jenkins对象，指明jenkins的部署信息
 jenkins = Jenkins(
     'http://stuq.ceshiren.com:8020/',
     username='seveniruby',
     password='11743b5e008e546ec1e404933d00b35a07'
 )
 
-
+# 使用SQL Alchemy创建类
 # 用户数据存储的表结构
 class User(db.Model):
-    # 可选，指定对应的表
-    __tablename__ = "seveniruby_user"
+    #类名指定对应的表，可选;
+    # 不写的话 默认表明为 类的小写user
+    __tablename__ = "candice_user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(80), unique=False, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    #在数据库中创建表
+    # db.create_all()
 
     def __repr__(self):
         return '<User %r>' % self.username
 
-
+# 使用SQL Alchemy创建类
 # 测试用例存储的表结构
 class TestCase(db.Model):
-    __tablename__ = "seveniruby_testcase"
+    __tablename__ = "candice_testcase"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     description = db.Column(db.String(500), unique=False, nullable=False)
     data = db.Column(db.String(1024), unique=False, nullable=False)
+    # 在数据库中创建表
+    # db.create_all()
 
     def __repr__(self):
         return '<TestCase %r>' % self.name
 
-
 # 对外的api定义
+#TestCaseApi 继承了Resource，在Resource中有get,post等方法
 class TestCaseApi(Resource):
-    # 需要token验证
+    # jwt_required需要token验证：加了token 以后只能登陆之后才能访问该接口
     @jwt_required
+    #返回数据库中所有的case
     def get(self):
         r = []
         # 查询所有表内数据
@@ -73,7 +81,7 @@ class TestCaseApi(Resource):
             r.append(res)
         return r
 
-    @jwt_required
+
     def post(self):
         t = TestCase(
             name=request.json['name'],
@@ -99,7 +107,7 @@ class TestCaseApi(Resource):
 
 
 class LoginApi(Resource):
-    # 无需验证
+    # 没有@jwt_required，代表LoginApi是一个公开的api,无需验证
     def get(self):
         # User.query.all()
         return {'hello': 'world'}
@@ -111,6 +119,7 @@ class LoginApi(Resource):
         # todo: 通常密码不建议原文存储
         password = request.json.get('password', None)
         # 查数据库，取出符合条件的第一条
+        #filter_by()根据查询条件.first()取出首个数据
         user = User.query.filter_by(username=username, password=password).first()
         # done：生成返回结构体
         if user is None:
@@ -150,6 +159,7 @@ class TaskApi(Resource):
         # done: 调度jenkins，驱动job执行
         jenkins['testcase'].invoke(
             securitytoken='11743b5e008e546ec1e404933d00b35a07',
+            #参数化构建
             build_params={
                 'testcases': testcases
             })
@@ -186,3 +196,4 @@ api.add_resource(TaskApi, '/task')
 
 if __name__ == '__main__':
     app.run(debug=True)
+

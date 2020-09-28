@@ -1,10 +1,9 @@
 import requests
 
-
 class BaseTestCase:
     def setup_class(self):
-        username = 'seveniruby'
-        password = 'hogwarts'
+        username = 'candice'
+        password = '111'
         r = requests.post(
             'http://127.0.0.1:5000/login',
             json={
